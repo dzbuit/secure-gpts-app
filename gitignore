@@ -1,0 +1,17 @@
+
+# Ignore Streamlit secrets and logs
+.streamlit/secrets.toml
+access.log
+
+# Ignore Python cache and system files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.DS_Store
+
+# Ignore environment files
+.env
+.env.*
+.venv/
+venv/
