@@ -23,26 +23,23 @@ request_count = defaultdict(int)
 # Logging
 logging.basicConfig(filename="access.log", level=logging.INFO, format="%(asctime)s - %(message)s")
 
-# Generate JWT token
+# Generate JWT token (10분 제한)
 def generate_token(email):
     payload = {
         "email": email,
-        "exp": time.time() + 300,
+        "exp": time.time() + 600,  # 10분 유효
         "access": "gpts"
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token.decode("utf-8") if isinstance(token, bytes) else token
 
-# Validate JWT token
+# Validate JWT token (조용히 무시)
 def validate_token(token):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload if payload.get("access") == "gpts" else None
-    except jwt.ExpiredSignatureError:
-        st.error("토큰이 만료되었습니다.")
-    except jwt.InvalidTokenError:
-        st.error("유효하지 않은 토큰입니다.")
-    return None
+    except Exception:
+        return None
 
 # Validate corporate email
 def validate_email(email):
@@ -58,7 +55,7 @@ def send_email(to_email, token):
     <html>
       <body style="text-align:center; font-family:sans-serif;">
         <h2>🔐 GPTs 사내 포탈 접속</h2>
-        <p style="margin-bottom: 30px;">아래 버튼을 클릭하면 GPTs에 바로 연결됩니다.</p>
+        <p style="margin-bottom: 30px;">아래 버튼을 클릭하면 GPTs에 바로 연결됩니다. (10분 유효)</p>
         <a href="{link}" target="_blank" style="padding:14px 24px; background-color:#4CAF50; color:white; text-decoration:none; border-radius:6px; font-size:16px;">
           🚀 GPTs 접속하기
         </a>
@@ -87,16 +84,13 @@ def increment_request_count(email):
     request_count[email] += 1
     logging.info(f"{email} has made {request_count[email]} requests")
 
-# 🔐 Handle token access via URL param
+# Handle token access via URL param
 token = st.query_params.get("token", [None])[0]
 
 if token:
     payload = validate_token(token)
     if payload:
-        email = payload["email"]
-        logging.info(f"{email} accessed GPTs.")
-        st.success("인증 성공! GPTs로 이동합니다.")
-        st.markdown(f"<meta http-equiv='refresh' content='2;url={GPTS_URL}'>", unsafe_allow_html=True)
+        st.markdown(f"<meta http-equiv='refresh' content='0;url={GPTS_URL}'>", unsafe_allow_html=True)
     st.stop()
 
 # UI
