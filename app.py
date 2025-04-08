@@ -3,7 +3,7 @@ import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import urllib.parse
+import hashlib
 import logging
 from collections import defaultdict
 
@@ -14,14 +14,19 @@ ALLOWED_DOMAIN = st.secrets["ALLOWED_DOMAIN"]
 GPTS_URL = st.secrets["GPTS_URL"]
 BASE_URL = st.secrets["BASE_URL"]
 
-# Logging
+# Logging & user tracking
 logging.basicConfig(filename="access.log", level=logging.INFO, format="%(asctime)s - %(message)s")
 request_count = defaultdict(int)
+user_hash_set = set()
 
 # Validate email
 def validate_email(email):
     pattern = rf"^[\w\.-]+@{ALLOWED_DOMAIN}$"
     return re.match(pattern, email)
+
+# Anonymize email (SHA-256)
+def anonymize_email(email):
+    return hashlib.sha256(email.encode()).hexdigest()
 
 # Send properly styled email
 def send_email(to_email):
@@ -67,10 +72,14 @@ if st.button("접속 요청"):
     if not validate_email(email):
         st.error("올바른 사내 이메일 주소를 입력하세요.")
     else:
-        request_count[email] += 1
-        logging.info(f"{email} 요청 {request_count[email]}회")
-        if request_count[email] > 5:
+        hashed = anonymize_email(email)
+        user_hash_set.add(hashed)
+        request_count[hashed] += 1
+        logging.info(f"{hashed} 요청 {request_count[hashed]}회")
+
+        if request_count[hashed] > 5:
             st.error("요청이 너무 많습니다. 잠시 후 다시 시도하세요.")
         else:
             if send_email(email):
                 st.success("접속 링크가 이메일로 전송되었습니다.")
+                st.info(f"지금까지 {len(user_hash_set)}명의 유니크 사용자가 이용했습니다.")
