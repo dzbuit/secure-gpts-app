@@ -9,19 +9,19 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import urllib.parse
 
-# Load secrets
+# Load secrets from Streamlit
 SENDER_EMAIL = st.secrets["SENDER_EMAIL"]
 SENDER_PASSWORD = st.secrets["SENDER_PASSWORD"]
 ALLOWED_DOMAIN = st.secrets["ALLOWED_DOMAIN"]
 GPTS_URL = st.secrets["GPTS_URL"]
 SECRET_KEY = st.secrets["SECRET_KEY"]
-BASE_URL = st.secrets["BASE_URL"]  # ✅ 추가됨
+BASE_URL = st.secrets["BASE_URL"]  # 이 주소로 이메일 링크 생성
 
-# Setup request tracking
+# Set up logging and request count tracking
 request_count = defaultdict(int)
 logging.basicConfig(filename="access.log", level=logging.INFO, format="%(asctime)s - %(message)s")
 
-# Token generator
+# JWT 토큰 생성
 def generate_token(email):
     payload = {
         "email": email,
@@ -30,7 +30,7 @@ def generate_token(email):
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
-# Token validator
+# JWT 토큰 검증
 def validate_token(token):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -41,16 +41,16 @@ def validate_token(token):
         st.error("유효하지 않은 토큰입니다.")
     return None
 
-# Email validator
+# 이메일 주소 형식 검증
 def validate_email(email):
     pattern = rf"^[\w\.-]+@{ALLOWED_DOMAIN}$"
     return re.match(pattern, email)
 
-# Email sender with HTML format and encoded token
+# 이메일 전송 함수 (HTML 포맷 + 토큰 인코딩)
 def send_email(to_email, token):
     safe_token = urllib.parse.quote(token)
     link = f"{BASE_URL}/?token={safe_token}"
-    
+
     msg = MIMEMultipart("alternative")
     msg['Subject'] = "🔐 GPTs 인증 링크"
     msg['From'] = SENDER_EMAIL
@@ -65,8 +65,8 @@ def send_email(to_email, token):
       </body>
     </html>
     """
-
     msg.attach(MIMEText(html, "html"))
+
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
@@ -77,13 +77,13 @@ def send_email(to_email, token):
         st.error(f"이메일 전송 실패: {e}")
         return False
 
+# 요청 횟수 추적
 def increment_request_count(email):
     request_count[email] += 1
     logging.info(f"{email} has made {request_count[email]} requests")
 
-# Query param으로 들어온 토큰 처리
-query_params = st.experimental_get_query_params()
-token = query_params.get("token", [None])[0]
+# ✅ 쿼리 파라미터 처리 (streamlit 최신 버전)
+token = st.query_params.get("token", [None])[0]
 
 if token:
     payload = validate_token(token)
