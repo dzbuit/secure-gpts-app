@@ -23,17 +23,23 @@ def validate_email(email):
     pattern = rf"^[\w\.-]+@{ALLOWED_DOMAIN}$"
     return re.match(pattern, email)
 
-# Send immediate redirect link email
+# Send properly styled email
 def send_email(to_email):
     link = f"{GPTS_URL}"
     html = f"""
     <html>
-      <body style="text-align:center; font-family:sans-serif;">
-        <h2>🚀 GPTs 사내 포탈</h2>
-        <p>아래 버튼을 클릭하면 바로 GPTs로 연결됩니다.</p>
-        <a href="{link}" target="_blank" style="padding:14px 24px; background-color:#4CAF50; color:white; text-decoration:none; border-radius:6px; font-size:16px;">
-          GPTs 접속하기
-        </a>
+      <body style="text-align:center; font-family:sans-serif; padding: 20px;">
+        <h2 style="margin-bottom: 16px;">🚀 GPTs 사내 포탈</h2>
+        <p style="margin-bottom: 40px; font-size: 14px; color: #444;">
+          아래 버튼을 클릭하면 GPTs에 바로 연결됩니다.
+        </p>
+        <div style="margin-top: 10px;">
+          <a href="{link}" target="_blank"
+             style="display: inline-block; padding: 14px 24px; background-color: #4CAF50;
+                    color: white; text-decoration: none; border-radius: 6px; font-size: 16px;">
+            GPTs 접속하기
+          </a>
+        </div>
       </body>
     </html>
     """
