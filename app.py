@@ -9,19 +9,21 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import urllib.parse
 
-# Load secrets from Streamlit
+# Load secrets from .streamlit/secrets.toml
 SENDER_EMAIL = st.secrets["SENDER_EMAIL"]
 SENDER_PASSWORD = st.secrets["SENDER_PASSWORD"]
 ALLOWED_DOMAIN = st.secrets["ALLOWED_DOMAIN"]
 GPTS_URL = st.secrets["GPTS_URL"]
 SECRET_KEY = st.secrets["SECRET_KEY"]
-BASE_URL = st.secrets["BASE_URL"]  # 이 주소로 이메일 링크 생성
+BASE_URL = st.secrets["BASE_URL"]
 
-# Set up logging and request count tracking
+# Request count tracking
 request_count = defaultdict(int)
+
+# Logging
 logging.basicConfig(filename="access.log", level=logging.INFO, format="%(asctime)s - %(message)s")
 
-# JWT 토큰 생성
+# Generate JWT token
 def generate_token(email):
     payload = {
         "email": email,
@@ -30,7 +32,7 @@ def generate_token(email):
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
-# JWT 토큰 검증
+# Validate JWT token
 def validate_token(token):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -41,30 +43,32 @@ def validate_token(token):
         st.error("유효하지 않은 토큰입니다.")
     return None
 
-# 이메일 주소 형식 검증
+# Validate corporate email
 def validate_email(email):
     pattern = rf"^[\w\.-]+@{ALLOWED_DOMAIN}$"
     return re.match(pattern, email)
 
-# 이메일 전송 함수 (HTML 포맷 + 토큰 인코딩)
+# Send email with simple button-only HTML
 def send_email(to_email, token):
     safe_token = urllib.parse.quote(token)
     link = f"{BASE_URL}/?token={safe_token}"
 
-    msg = MIMEMultipart("alternative")
-    msg['Subject'] = "🔐 GPTs 인증 링크"
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = to_email
-
     html = f"""
     <html>
-      <body>
-        <p>GPTs 포탈 접속 링크입니다. 아래 버튼을 클릭하세요 (유효 시간: 5분):</p>
-        <a href="{link}" target="_blank" style="padding:10px 15px; background-color:#4CAF50; color:white; text-decoration:none; border-radius:5px;">🔗 GPTs 접속하기</a>
-        <p>또는 직접 이 주소를 복사해 브라우저에 붙여넣으세요:<br>{link}</p>
+      <body style="text-align:center; font-family:sans-serif;">
+        <h2>🔐 GPTs 사내 포탈 접속</h2>
+        <p style="margin-bottom: 30px;">아래 버튼을 클릭하면 GPTs에 바로 연결됩니다.</p>
+        <a href="{link}" target="_blank" style="padding:14px 24px; background-color:#4CAF50; color:white; text-decoration:none; border-radius:6px; font-size:16px;">
+          🚀 GPTs 접속하기
+        </a>
       </body>
     </html>
     """
+
+    msg = MIMEMultipart("alternative")
+    msg['Subject'] = "GPTs 접속 링크"
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = to_email
     msg.attach(MIMEText(html, "html"))
 
     try:
@@ -77,12 +81,12 @@ def send_email(to_email, token):
         st.error(f"이메일 전송 실패: {e}")
         return False
 
-# 요청 횟수 추적
+# Count user requests
 def increment_request_count(email):
     request_count[email] += 1
     logging.info(f"{email} has made {request_count[email]} requests")
 
-# ✅ 쿼리 파라미터 처리 (streamlit 최신 버전)
+# 🔐 Handle token access via URL param
 token = st.query_params.get("token", [None])[0]
 
 if token:
@@ -94,13 +98,13 @@ if token:
         st.markdown(f"<meta http-equiv='refresh' content='2;url={GPTS_URL}'>", unsafe_allow_html=True)
     st.stop()
 
-# 메인 UI
+# UI
 st.title("GPTs 사내 포탈")
 email = st.text_input("사내 이메일 주소 입력")
 
 if st.button("접속 요청"):
     if not validate_email(email):
-        st.error("Invalid email address. Please use your corporate email.")
+        st.error("올바른 사내 이메일 주소를 입력하세요.")
     else:
         increment_request_count(email)
         if request_count[email] > 5:
@@ -108,5 +112,5 @@ if st.button("접속 요청"):
         else:
             token = generate_token(email)
             if send_email(email, token):
-                logging.info(f"{email} requested link.")
-                st.success("Access link has been sent to your email!")
+                logging.info(f"{email} requested access.")
+                st.success("접속 링크가 이메일로 전송되었습니다.")
